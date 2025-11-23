@@ -100,17 +100,19 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
     const handleApiCall = async (url, options) => {
         const response = await fetch(url, options);
-        
+
         if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After') || 'a few';
-            setToastMessage(`You're being rate limited by Spotify. Please try again in ${retryAfter} seconds.`);
-            throw new Error('Rate limited');
+            const retryAfter = response.headers.get("Retry-After") || "a few";
+            setToastMessage(
+                `You're being rate limited by Spotify. Please try again in ${retryAfter} seconds.`
+            );
+            throw new Error("Rate limited");
         }
-        
+
         return response;
     };
 
-    const fadeOutAndPlay = async (playlistUri, shuffle = false) {
+    const fadeOutAndPlay = async (playlistUri, shuffle = false) => {
         if (!player || !deviceId || isFading) return;
 
         try {
@@ -404,9 +406,9 @@ const SpotifyPlayer = ({ token, playlists }) => {
             {isFading && (
                 <div className="fade-indicator">Transitioning playlists...</div>
             )}
-            
+
             {toastMessage && (
-                <Toast 
+                <Toast
                     message={toastMessage}
                     type="error"
                     onClose={() => setToastMessage(null)}
