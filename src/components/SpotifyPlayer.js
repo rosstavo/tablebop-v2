@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import Toast from "./Toast";
 import "./SpotifyPlayer.css";
 
 const SpotifyPlayer = ({ token, playlists }) => {
@@ -8,6 +9,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
     const [isReady, setIsReady] = useState(false);
     const [isFading, setIsFading] = useState(false);
     const [isShiftPressed, setIsShiftPressed] = useState(false);
+    const [toastMessage, setToastMessage] = useState(null);
     const fadeIntervalRef = useRef(null);
 
     useEffect(() => {
@@ -96,7 +98,19 @@ const SpotifyPlayer = ({ token, playlists }) => {
         };
     }, []);
 
-    const fadeOutAndPlay = async (playlistUri, shuffle = false) => {
+    const handleApiCall = async (url, options) => {
+        const response = await fetch(url, options);
+        
+        if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After') || 'a few';
+            setToastMessage(`You're being rate limited by Spotify. Please try again in ${retryAfter} seconds.`);
+            throw new Error('Rate limited');
+        }
+        
+        return response;
+    };
+
+    const fadeOutAndPlay = async (playlistUri, shuffle = false) {
         if (!player || !deviceId || isFading) return;
 
         try {
@@ -120,7 +134,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
                             clearInterval(fadeIntervalRef.current);
                             fadeIntervalRef.current = null;
                             // Set volume to 0 via API
-                            await fetch(
+                            await handleApiCall(
                                 `https://api.spotify.com/v1/me/player/volume?volume_percent=0`,
                                 {
                                     method: "PUT",
@@ -133,7 +147,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
                             resolve();
                         } else {
                             // Set volume via API
-                            await fetch(
+                            await handleApiCall(
                                 `https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.floor(
                                     currentVolume
                                 )}`,
@@ -151,7 +165,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
             // Start new playlist at max volume
             console.log("Starting playback with shuffle:", shuffle);
-            await fetch(
+            await handleApiCall(
                 `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
                 {
                     method: "PUT",
@@ -171,7 +185,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
             // Set shuffle state AFTER playback has started on the device
             console.log("Now setting shuffle to:", shuffle);
-            const shuffleResponse = await fetch(
+            const shuffleResponse = await handleApiCall(
                 `https://api.spotify.com/v1/me/player/shuffle?state=${shuffle}&device_id=${deviceId}`,
                 {
                     method: "PUT",
@@ -183,7 +197,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
             console.log("Shuffle response status:", shuffleResponse.status);
 
             // Set to max volume via API
-            await fetch(
+            await handleApiCall(
                 `https://api.spotify.com/v1/me/player/volume?volume_percent=100`,
                 {
                     method: "PUT",
@@ -207,7 +221,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
         try {
             // Start new playlist immediately
             console.log("Starting instant playback with shuffle:", shuffle);
-            await fetch(
+            await handleApiCall(
                 `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
                 {
                     method: "PUT",
@@ -227,7 +241,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
             // Set shuffle state
             console.log("Now setting shuffle to:", shuffle);
-            await fetch(
+            await handleApiCall(
                 `https://api.spotify.com/v1/me/player/shuffle?state=${shuffle}&device_id=${deviceId}`,
                 {
                     method: "PUT",
@@ -238,7 +252,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
             );
 
             // Set to max volume via API
-            await fetch(
+            await handleApiCall(
                 `https://api.spotify.com/v1/me/player/volume?volume_percent=100`,
                 {
                     method: "PUT",
@@ -297,7 +311,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
                         if (currentVolume <= 0) {
                             clearInterval(fadeIntervalRef.current);
                             fadeIntervalRef.current = null;
-                            await fetch(
+                            await handleApiCall(
                                 `https://api.spotify.com/v1/me/player/volume?volume_percent=0`,
                                 {
                                     method: "PUT",
@@ -309,7 +323,7 @@ const SpotifyPlayer = ({ token, playlists }) => {
                             await player.pause();
                             resolve();
                         } else {
-                            await fetch(
+                            await handleApiCall(
                                 `https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.floor(
                                     currentVolume
                                 )}`,
@@ -389,6 +403,14 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
             {isFading && (
                 <div className="fade-indicator">Transitioning playlists...</div>
+            )}
+            
+            {toastMessage && (
+                <Toast 
+                    message={toastMessage}
+                    type="error"
+                    onClose={() => setToastMessage(null)}
+                />
             )}
         </div>
     );
