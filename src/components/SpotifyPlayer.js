@@ -348,19 +348,6 @@ const SpotifyPlayer = ({ token, playlists }) => {
 
     return (
         <div className="player-container">
-            <div className="playlist-header">
-                <h2>Your Playlists</h2>
-                <p className="playlist-count">
-                    {playlists.length} playlists available
-                    {isShiftPressed && (
-                        <span className="shift-hint">
-                            {" "}
-                            • Hold Shift: Instant play, no shuffle
-                        </span>
-                    )}
-                </p>
-            </div>
-
             <div className="playlist-grid">
                 {playlists.map((playlist) => (
                     <div
