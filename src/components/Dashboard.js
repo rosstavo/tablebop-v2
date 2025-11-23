@@ -6,21 +6,27 @@ import "./Dashboard.css";
 
 const Dashboard = ({ token, onLogout }) => {
     const [allPlaylists, setAllPlaylists] = useState([]);
-    const [selectedPlaylistIds, setSelectedPlaylistIds] = useState([]);
+    const [selectedPlaylistIds, setSelectedPlaylistIds] = useState(null); // null = not loaded yet
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [user, setUser] = useState(null);
     const [showSettings, setShowSettings] = useState(false);
 
-    // Load selected playlists from cookie
+    // Load selected playlists from cookie on mount
     useEffect(() => {
         const savedIds = getCookie("selectedPlaylists");
         if (savedIds) {
             try {
-                setSelectedPlaylistIds(JSON.parse(savedIds));
+                const parsed = JSON.parse(decodeURIComponent(savedIds));
+                console.log("Loaded saved playlist IDs:", parsed);
+                setSelectedPlaylistIds(parsed);
             } catch (e) {
                 console.error("Error parsing saved playlists:", e);
+                setSelectedPlaylistIds([]);
             }
+        } else {
+            console.log("No saved playlists found");
+            setSelectedPlaylistIds([]);
         }
     }, []);
 
@@ -34,10 +40,15 @@ const Dashboard = ({ token, onLogout }) => {
     const setCookie = (name, value, days = 365) => {
         const expires = new Date();
         expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+        const encodedValue = encodeURIComponent(value);
+        document.cookie = `${name}=${encodedValue};expires=${expires.toUTCString()};path=/`;
+        console.log("Saved cookie:", name, value);
     };
 
     useEffect(() => {
+        // Only fetch playlists if selectedPlaylistIds has been initialized from cookie
+        if (selectedPlaylistIds === null) return;
+
         const fetchData = async () => {
             try {
                 // Fetch user profile
@@ -71,7 +82,10 @@ const Dashboard = ({ token, onLogout }) => {
 
                 // If no saved selection, select all by default
                 if (selectedPlaylistIds.length === 0) {
-                    setSelectedPlaylistIds(allPlaylistsData.map((p) => p.id));
+                    const allIds = allPlaylistsData.map((p) => p.id);
+                    setSelectedPlaylistIds(allIds);
+                    setCookie("selectedPlaylists", JSON.stringify(allIds));
+                    console.log("No saved selection, selecting all playlists");
                 }
 
                 setLoading(false);
@@ -85,7 +99,17 @@ const Dashboard = ({ token, onLogout }) => {
         };
 
         fetchData();
-    }, [token]);
+    }, [token, selectedPlaylistIds]);
+
+    const handleSaveSettings = (newSelectedIds) => {
+        console.log("Saving new selected IDs:", newSelectedIds);
+        setSelectedPlaylistIds(newSelectedIds);
+        setCookie("selectedPlaylists", JSON.stringify(newSelectedIds));
+    };
+
+    const filteredPlaylists = allPlaylists.filter(
+        (p) => selectedPlaylistIds && selectedPlaylistIds.includes(p.id)
+    );
 
     if (loading) {
         return (
@@ -107,15 +131,6 @@ const Dashboard = ({ token, onLogout }) => {
             </div>
         );
     }
-
-    const handleSaveSettings = (newSelectedIds) => {
-        setSelectedPlaylistIds(newSelectedIds);
-        setCookie("selectedPlaylists", JSON.stringify(newSelectedIds));
-    };
-
-    const filteredPlaylists = allPlaylists.filter((p) =>
-        selectedPlaylistIds.includes(p.id)
-    );
 
     return (
         <div className="dashboard-container">
